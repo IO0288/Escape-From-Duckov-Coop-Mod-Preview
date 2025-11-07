@@ -1,0 +1,62 @@
+name: Build EscapeFromDuckovCoopMod
+
+on:
+  push:
+    branches: [ main, master, dev ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    name: Build Unity Mod ✨
+    runs-on: ubuntu-latest
+    steps:
+      # ---------- 1. 检出 ----------
+      - uses: actions/checkout@v4
+        with:
+          lfs: tru
+
+      # ---------- 2. 获取所需库文件 ----------
+      - name: Download Managed.zip
+        run: |
+          curl -L -o Managed.zip https://cdn.io0288.cn/file/EscapeFromDuckovCoopMod/Managed.zip
+          unzip -q Managed.zip -d Managed
+
+      - name: Set DUCKOV_GAME_MANAGED
+        run: |
+          echo "DUCKOV_GAME_MANAGED=$GITHUB_WORKSPACE/Managed" >> "$GITHUB_ENV"
+          echo "DUCKOV_GAME_DIRECTORY=$GITHUB_WORKSPACE/Managed" >> "$GITHUB_ENV"
+
+      - name: Verify DUCKOV_GAME_MANAGED
+        run: |
+          echo "DUCKOV_GAME_MANAGED is now ${{ env.DUCKOV_GAME_MANAGED }}"
+          echo "DUCKOV_GAME_DIRECTORY is now ${{ env.DUCKOV_GAME_DIRECTORY }}"
+
+      - name: List Managed folder
+        run: ls -l "$GITHUB_WORKSPACE/Managed" || echo "❌ Managed 目录不存在"
+
+
+      # ---------- 3. 构建 ----------
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.0.x'
+          
+      - name: Restore & Build
+        run: |
+          dotnet build EscapeFromDuckovCoopMod.sln \
+          -p:Configuration=Release \
+          -p:DUCKOV_GAME_MANAGED="${{ env.DUCKOV_GAME_MANAGED }}" \
+          -p:DUCKOV_GAME_DIRECTORY="${{ env.DUCKOV_GAME_DIRECTORY }}" \
+          -verbosity:normal \
+#          -target:ResolveAssemblyReferences
+
+      # ---------- 4. 上传产物 ----------
+      - name: Upload Mod DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: EscapeFromDuckovCoopMod
+          path: |
+            EscapeFromDuckovCoopMod/bin/Release/**/*.dll
+            EscapeFromDuckovCoopMod/bin/Release/**/*.pdb
+          retention-days: 30
